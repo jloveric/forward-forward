@@ -8,6 +8,8 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.10"
 torch = "^1.13.1"
+tqdm = "^4.64.1"
+torchvision = "^0.14.1"
 
 [tool.poetry.dev-dependencies]
 
