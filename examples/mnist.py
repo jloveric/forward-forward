@@ -47,7 +47,7 @@ class Net(torch.nn.Module):
         super().__init__()
         self.layers = []
         for d in range(len(dims) - 1):
-            self.layers += [network_layer(dims[d], dims[d + 1], cfg=cfg).cuda()]
+            self.layers += [network_layer[d](dims[d], dims[d + 1], cfg=cfg).cuda()]
 
     def predict(self, x):
         goodness_per_label = []
@@ -98,7 +98,7 @@ class Layer(TrainMixin, nn.Linear):
         self.relu = torch.nn.ReLU()
         self.opt = Adam(self.parameters(), lr=0.03)
         self.threshold = 2.0
-        self.num_epochs = 1000
+        self.num_epochs = cfg.num_epochs
 
     def forward(self, x):
         x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
@@ -116,11 +116,11 @@ class HighOrderLayer(TrainMixin, nn.Module):
             in_features=in_features,
             out_features=out_features,
             segments=cfg.segments,
-        )
+        ).cuda()
 
         self.opt = Adam(self.parameters(), lr=0.03)
         self.threshold = 2.0
-        self.num_epochs = 1000
+        self.num_epochs = cfg.num_epochs
 
     def forward(self, x):
         x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
@@ -141,7 +141,7 @@ def run(cfg: DictConfig):
         data_dir=data_dir,
     )
 
-    layer_type = layer_dict[cfg.layer_type]
+    layer_type = [layer_dict[layer] for layer in cfg.layer_type]
     net = Net(dims=cfg.layer_dim, network_layer=layer_type, cfg=cfg)
     x, y = next(iter(train_loader))
     x, y = x.cuda(), y.cuda()
