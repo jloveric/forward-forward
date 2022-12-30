@@ -1,3 +1,6 @@
+# About Repo
+This repo was originally copied from https://github.com/mohammadpz/pytorch_forward_forward.
+
 # pytorch_forward_forward
 Implementation of forward-forward (FF) training algorithm - an alternative to back-propagation
 ---
