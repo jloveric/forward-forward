@@ -1,4 +1,6 @@
-layer_type : [standard, high_order, high_order] # standard
+#layer_type : [standard, high_order, high_order]
+layer_type : [standard, standard, standard]
+
 
 # Running on a laptop I don't have enough vram
 # to use the complete dataset as a single batch.
@@ -6,7 +8,7 @@ train_batch_size: 5000 # 50000
 test_batch_size: 1000 # 10000
 
 #layer_dim : [784, 500, 500]
-layer_dim : [784, 40, 40, 40]
+layer_dim : [784, 500, 500, 500]
 
 n: 2
 segments: 2
