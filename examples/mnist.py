@@ -7,6 +7,7 @@ from torchvision.transforms import Compose, ToTensor, Normalize, Lambda
 from torch.utils.data import DataLoader
 from omegaconf import DictConfig, OmegaConf
 import hydra
+from high_order_layers_torch.layers import high_order_fc_layers
 
 
 def MNIST_loaders(train_batch_size=5000, test_batch_size=1000, data_dir: str = "data"):
@@ -42,11 +43,11 @@ def overlay_y_on_x(x, y):
 
 
 class Net(torch.nn.Module):
-    def __init__(self, dims):
+    def __init__(self, dims, network_layer, cfg: DictConfig):
         super().__init__()
         self.layers = []
         for d in range(len(dims) - 1):
-            self.layers += [Layer(dims[d], dims[d + 1]).cuda()]
+            self.layers += [network_layer(dims[d], dims[d + 1], cfg=cfg).cuda()]
 
     def predict(self, x):
         goodness_per_label = []
@@ -67,18 +68,7 @@ class Net(torch.nn.Module):
             h_pos, h_neg = layer.train(h_pos, h_neg)
 
 
-class Layer(nn.Linear):
-    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None):
-        super().__init__(in_features, out_features, bias, device, dtype)
-        self.relu = torch.nn.ReLU()
-        self.opt = Adam(self.parameters(), lr=0.03)
-        self.threshold = 2.0
-        self.num_epochs = 1000
-
-    def forward(self, x):
-        x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
-        return self.relu(torch.mm(x_direction, self.weight.T) + self.bias.unsqueeze(0))
-
+class TrainMixin:
     def train(self, x_pos, x_neg):
         for i in tqdm(range(self.num_epochs)):
             g_pos = self.forward(x_pos).pow(2).mean(1)
@@ -99,6 +89,47 @@ class Layer(nn.Linear):
         return self.forward(x_pos).detach(), self.forward(x_neg).detach()
 
 
+class Layer(TrainMixin, nn.Linear):
+    def __init__(
+        self, in_features, out_features, cfg, bias=True, device=None, dtype=None
+    ):
+        super().__init__(in_features, out_features, bias, device, dtype)
+        self.cfg = cfg
+        self.relu = torch.nn.ReLU()
+        self.opt = Adam(self.parameters(), lr=0.03)
+        self.threshold = 2.0
+        self.num_epochs = 1000
+
+    def forward(self, x):
+        x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
+        return self.relu(torch.mm(x_direction, self.weight.T) + self.bias.unsqueeze(0))
+
+
+class HighOrderLayer(TrainMixin, nn.Module):
+    def __init__(self, in_features, out_features, cfg, device=None):
+        super().__init__()
+
+        self.cfg = cfg
+        self.model = high_order_fc_layers(
+            layer_type="discontinuous",
+            n=cfg.n,
+            in_features=in_features,
+            out_features=out_features,
+            segments=cfg.segments,
+        )
+
+        self.opt = Adam(self.parameters(), lr=0.03)
+        self.threshold = 2.0
+        self.num_epochs = 1000
+
+    def forward(self, x):
+        x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
+        return self.model(x_direction)
+
+
+layer_dict = {"standard": Layer, "high_order": HighOrderLayer}
+
+
 @hydra.main(config_path="../config", config_name="mnist")
 def run(cfg: DictConfig):
     data_dir = f"{hydra.utils.get_original_cwd()}/data"
@@ -110,7 +141,8 @@ def run(cfg: DictConfig):
         data_dir=data_dir,
     )
 
-    net = Net([784, 500, 500])
+    layer_type = layer_dict[cfg.layer_type]
+    net = Net(dims=cfg.layer_dim, network_layer=layer_type, cfg=cfg)
     x, y = next(iter(train_loader))
     x, y = x.cuda(), y.cuda()
     x_pos = overlay_y_on_x(x, y)
