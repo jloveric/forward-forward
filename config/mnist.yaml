@@ -9,7 +9,9 @@ test_batch_size: 1000 # 10000
 
 #layer_dim : [784, 500, 500]
 layer_dim : [784, 500, 500, 500]
+#layer_dim : [784, 40, 40, 40]
 
 n: 2
 segments: 2
 num_epochs: 1000 #1000
+high_order_layer_type: continuous

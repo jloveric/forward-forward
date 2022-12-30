@@ -111,7 +111,7 @@ class HighOrderLayer(TrainMixin, nn.Module):
 
         self.cfg = cfg
         self.model = high_order_fc_layers(
-            layer_type="discontinuous",
+            layer_type=cfg.high_order_layer_type,
             n=cfg.n,
             in_features=in_features,
             out_features=out_features,
