@@ -1,5 +1,5 @@
 # About Repo
-This repo was originally copied from https://github.com/mohammadpz/pytorch_forward_forward. I've extended it and used poetry, hydra, tensorboard etc...
+This repo was originally copied from https://github.com/mohammadpz/pytorch_forward_forward. I've extended it and used poetry, hydra, tensorboard etc... Work in Progress
 
 ## installation
 ```

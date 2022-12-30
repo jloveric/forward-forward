@@ -7,7 +7,7 @@ from torchvision.transforms import Compose, ToTensor, Normalize, Lambda
 from torch.utils.data import DataLoader
 
 
-def MNIST_loaders(train_batch_size=50000, test_batch_size=10000):
+def MNIST_loaders(train_batch_size=5000, test_batch_size=1000):
 
     transform = Compose([
         ToTensor(),
