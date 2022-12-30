@@ -5,26 +5,31 @@ from torch.optim import Adam
 from torchvision.datasets import MNIST
 from torchvision.transforms import Compose, ToTensor, Normalize, Lambda
 from torch.utils.data import DataLoader
+from omegaconf import DictConfig, OmegaConf
+import hydra
 
 
-def MNIST_loaders(train_batch_size=5000, test_batch_size=1000):
+def MNIST_loaders(train_batch_size=5000, test_batch_size=1000, data_dir: str = "data"):
 
-    transform = Compose([
-        ToTensor(),
-        Normalize((0.1307,), (0.3081,)),
-        Lambda(lambda x: torch.flatten(x))])
+    transform = Compose(
+        [
+            ToTensor(),
+            Normalize((0.1307,), (0.3081,)),
+            Lambda(lambda x: torch.flatten(x)),
+        ]
+    )
 
     train_loader = DataLoader(
-        MNIST('./data/', train=True,
-              download=True,
-              transform=transform),
-        batch_size=train_batch_size, shuffle=True)
+        MNIST(data_dir, train=True, download=True, transform=transform),
+        batch_size=train_batch_size,
+        shuffle=True,
+    )
 
     test_loader = DataLoader(
-        MNIST('./data/', train=False,
-              download=True,
-              transform=transform),
-        batch_size=test_batch_size, shuffle=False)
+        MNIST(data_dir, train=False, download=True, transform=transform),
+        batch_size=test_batch_size,
+        shuffle=False,
+    )
 
     return train_loader, test_loader
 
@@ -37,7 +42,6 @@ def overlay_y_on_x(x, y):
 
 
 class Net(torch.nn.Module):
-
     def __init__(self, dims):
         super().__init__()
         self.layers = []
@@ -59,13 +63,12 @@ class Net(torch.nn.Module):
     def train(self, x_pos, x_neg):
         h_pos, h_neg = x_pos, x_neg
         for i, layer in enumerate(self.layers):
-            print('training layer', i, '...')
+            print("training layer", i, "...")
             h_pos, h_neg = layer.train(h_pos, h_neg)
 
 
 class Layer(nn.Linear):
-    def __init__(self, in_features, out_features,
-                 bias=True, device=None, dtype=None):
+    def __init__(self, in_features, out_features, bias=True, device=None, dtype=None):
         super().__init__(in_features, out_features, bias, device, dtype)
         self.relu = torch.nn.ReLU()
         self.opt = Adam(self.parameters(), lr=0.03)
@@ -74,9 +77,7 @@ class Layer(nn.Linear):
 
     def forward(self, x):
         x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
-        return self.relu(
-            torch.mm(x_direction, self.weight.T) +
-            self.bias.unsqueeze(0))
+        return self.relu(torch.mm(x_direction, self.weight.T) + self.bias.unsqueeze(0))
 
     def train(self, x_pos, x_neg):
         for i in tqdm(range(self.num_epochs)):
@@ -84,9 +85,12 @@ class Layer(nn.Linear):
             g_neg = self.forward(x_neg).pow(2).mean(1)
             # The following loss pushes pos (neg) samples to
             # values larger (smaller) than the self.threshold.
-            loss = torch.log(1 + torch.exp(torch.cat([
-                -g_pos + self.threshold,
-                g_neg - self.threshold]))).mean()
+            loss = torch.log(
+                1
+                + torch.exp(
+                    torch.cat([-g_pos + self.threshold, g_neg - self.threshold])
+                )
+            ).mean()
             self.opt.zero_grad()
             # this backward just compute the derivative and hence
             # is not considered backpropagation.
@@ -94,9 +98,17 @@ class Layer(nn.Linear):
             self.opt.step()
         return self.forward(x_pos).detach(), self.forward(x_neg).detach()
 
-if __name__ == "__main__":
+
+@hydra.main(config_path="../config", config_name="mnist")
+def run(cfg: DictConfig):
+    data_dir = f"{hydra.utils.get_original_cwd()}/data"
+
     torch.manual_seed(1234)
-    train_loader, test_loader = MNIST_loaders()
+    train_loader, test_loader = MNIST_loaders(
+        train_batch_size=cfg.train_batch_size,
+        test_batch_size=cfg.test_batch_size,
+        data_dir=data_dir,
+    )
 
     net = Net([784, 500, 500])
     x, y = next(iter(train_loader))
@@ -106,9 +118,13 @@ if __name__ == "__main__":
     x_neg = overlay_y_on_x(x, y[rnd])
     net.train(x_pos, x_neg)
 
-    print('train error:', 1.0 - net.predict(x).eq(y).float().mean().item())
+    print("train error:", 1.0 - net.predict(x).eq(y).float().mean().item())
 
     x_te, y_te = next(iter(test_loader))
     x_te, y_te = x_te.cuda(), y_te.cuda()
 
-    print('test error:', 1.0 - net.predict(x_te).eq(y_te).float().mean().item())
+    print("test error:", 1.0 - net.predict(x_te).eq(y_te).float().mean().item())
+
+
+if __name__ == "__main__":
+    run()

@@ -1,0 +1,4 @@
+# Running on a laptop I don't have enough vram
+# to use the complete dataset as a single batch.
+train_batch_size: 5000 # 50000
+test_batch_size: 1000 # 10000
