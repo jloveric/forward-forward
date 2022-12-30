@@ -8,6 +8,21 @@ from torch.utils.data import DataLoader
 from omegaconf import DictConfig, OmegaConf
 import hydra
 from high_order_layers_torch.layers import high_order_fc_layers
+from torch import Tensor
+
+def max_abs(x : Tensor) :
+    return torch.max(x.abs(), dim=1, keepdim=True)[0]
+
+def max_abs_normalization(x : Tensor) :
+    return x / (max_abs(x)+1e-4)
+
+def l2_normalization(x : Tensor) :
+    return x / (x.norm(2, 1, keepdim=True) + 1e-4)
+
+norm_type = {
+    "max_abs" : max_abs_normalization,
+    "l2" : l2_normalization,
+}
 
 
 def MNIST_loaders(train_batch_size=5000, test_batch_size=1000, data_dir: str = "data"):
@@ -99,9 +114,12 @@ class Layer(TrainMixin, nn.Linear):
         self.opt = Adam(self.parameters(), lr=0.03)
         self.threshold = 2.0
         self.num_epochs = cfg.num_epochs
+        self.normalization = norm_type[cfg.standard_norm_type]
 
     def forward(self, x):
-        x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
+        #x_direction = x / (x.norm(p=2, dim=1, keepdim=True) + 1e-4)
+        x_direction = self.normalization(norm_type)
+        #x_direction = x/(max_abs(x)+1e-4)
         return self.relu(torch.mm(x_direction, self.weight.T) + self.bias.unsqueeze(0))
 
 
@@ -121,9 +139,11 @@ class HighOrderLayer(TrainMixin, nn.Module):
         self.opt = Adam(self.parameters(), lr=0.03)
         self.threshold = 2.0
         self.num_epochs = cfg.num_epochs
+        self.normalization = cfg.high_order_norm_type
 
     def forward(self, x):
-        x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
+        #x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)
+        x_direction = self.normalization(x)
         return self.model(x_direction)
 
 

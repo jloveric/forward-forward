@@ -1,5 +1,5 @@
-#layer_type : [standard, high_order, high_order]
-layer_type : [standard, standard, standard]
+layer_type : [standard, high_order, high_order]
+#layer_type : [standard, standard, standard]
 
 
 # Running on a laptop I don't have enough vram
@@ -8,10 +8,19 @@ train_batch_size: 5000 # 50000
 test_batch_size: 1000 # 10000
 
 #layer_dim : [784, 500, 500]
-layer_dim : [784, 500, 500, 500]
-#layer_dim : [784, 40, 40, 40]
+#layer_dim : [784, 500, 500, 500]
+layer_dim : [784, 40, 40, 40]
 
 n: 2
 segments: 2
 num_epochs: 1000 #1000
 high_order_layer_type: continuous
+
+
+# Using relu layers use the l2 norm
+standard_norm_type: l2
+
+# Using high order layers use max_abs
+# the logic here is we don't want the values
+# pushed towards zero with more inputs
+high_order_norm_type : max_abs
