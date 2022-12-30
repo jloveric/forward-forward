@@ -13,11 +13,11 @@ from torch import Tensor
 def max_abs(x : Tensor) :
     return torch.max(x.abs(), dim=1, keepdim=True)[0]
 
-def max_abs_normalization(x : Tensor) :
-    return x / (max_abs(x)+1e-4)
+def max_abs_normalization(x : Tensor, eps : float=1e-6) :
+    return x / (max_abs(x)+eps)
 
-def l2_normalization(x : Tensor) :
-    return x / (x.norm(2, 1, keepdim=True) + 1e-4)
+def l2_normalization(x : Tensor, eps : float=1e-6) :
+    return x / (x.norm(2, 1, keepdim=True) + eps)
 
 norm_type = {
     "max_abs" : max_abs_normalization,
@@ -118,7 +118,7 @@ class Layer(TrainMixin, nn.Linear):
 
     def forward(self, x):
         #x_direction = x / (x.norm(p=2, dim=1, keepdim=True) + 1e-4)
-        x_direction = self.normalization(norm_type)
+        x_direction = self.normalization(x)
         #x_direction = x/(max_abs(x)+1e-4)
         return self.relu(torch.mm(x_direction, self.weight.T) + self.bias.unsqueeze(0))
 
@@ -137,9 +137,9 @@ class HighOrderLayer(TrainMixin, nn.Module):
         ).cuda()
 
         self.opt = Adam(self.parameters(), lr=0.03)
-        self.threshold = 2.0
+        self.threshold = 0.0
         self.num_epochs = cfg.num_epochs
-        self.normalization = cfg.high_order_norm_type
+        self.normalization = norm_type[cfg.high_order_norm_type]
 
     def forward(self, x):
         #x_direction = x / (x.norm(2, 1, keepdim=True) + 1e-4)

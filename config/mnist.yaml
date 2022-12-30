@@ -9,7 +9,7 @@ test_batch_size: 1000 # 10000
 
 #layer_dim : [784, 500, 500]
 #layer_dim : [784, 500, 500, 500]
-layer_dim : [784, 40, 40, 40]
+layer_dim : [784, 20, 20, 20]
 
 n: 2
 segments: 2
